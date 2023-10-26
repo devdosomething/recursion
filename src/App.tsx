@@ -201,7 +201,7 @@ const App: FC = () => {
   return (
     <React.Fragment>
       <header className="header">
-        <img src="/src/mcc-logo.svg" width={"200px"} />
+        <img src="/src/assets/mcc-logo.svg" />
       </header>
       <body className="body">
         <div className="tree">

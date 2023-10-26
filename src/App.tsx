@@ -29,7 +29,7 @@ const treeData: ITreeData[] = [
   },
 ];
 
-const transformRawJSONToAddUniqueIds = (tree: ITreeNode[]): ITreeNode[] => {
+const recursion = (tree: ITreeNode[]): ITreeNode[] => {
   if (!tree) return [];
 
   return tree.map((node: ITreeNode) => {
@@ -38,7 +38,7 @@ const transformRawJSONToAddUniqueIds = (tree: ITreeNode[]): ITreeNode[] => {
     };
 
     if (node.contains) {
-      newNode.contains = transformRawJSONToAddUniqueIds(node.contains);
+      newNode.contains = recursion(node.contains);
     }
 
     return newNode;
@@ -50,7 +50,7 @@ const App: FC = () => {
   const [initialState] = useState<ITreeData[]>(treeData);
 
   useEffect(() => {
-    setTree(transformRawJSONToAddUniqueIds(treeData));
+    setTree(recursion(treeData));
   }, []);
 
   const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
@@ -68,17 +68,20 @@ const App: FC = () => {
   };
 
   const handleReset = (): void => {
-    setTree(transformRawJSONToAddUniqueIds(initialState));
+    setTree(recursion(initialState));
     setExpandedNodes(new Set());
   };
 
-  const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [currentEditValue, setCurrentEditValue] = useState<string>("");
+  const [activeNodeId, setActiveNodeId] = useState<number>(1);
+  const [activeNodeName, setActiveNodeName] = useState<string>("");
+  const [isEditing, setIsEditing] = useState<{ [key: number]: boolean }>({});
+  const [editValues, setEditValues] = useState<{ [key: number]: string }>({});
 
   const handleStartEdit = (nodeId: number, nodeName: string): void => {
-    setActiveNodeId(nodeId);
-    setIsEditing(true);
-    setCurrentEditValue(nodeName);
+    const updatedIsEditing = { ...isEditing, [nodeId]: true };
+    setIsEditing(updatedIsEditing);
+    const updatedEditValues = { ...editValues, [nodeId]: nodeName };
+    setEditValues(updatedEditValues);
   };
 
   const handleUpdateName = (nodeId: number, newName: string) => {
@@ -101,6 +104,8 @@ const App: FC = () => {
     };
 
     setTree((prevTree) => updateNameRecursively(prevTree));
+    const updatedIsEditing = { ...isEditing, [nodeId]: false };
+    setIsEditing(updatedIsEditing);
   };
 
   const addNode = (parentId: number | null) => {
@@ -150,30 +155,37 @@ const App: FC = () => {
     setTree(updatedTree);
   };
 
-  const [activeNodeId, setActiveNodeId] = useState<number>(1);
-
   const buildTree = (nodes: ITreeNode[]): JSX.Element[] => {
     const mappedNodes = nodes.map((node) => {
       const isExpanded = expandedNodes.has(node.id);
+
       return (
         <div key={node.id} style={{ marginLeft: "50px" }}>
           <span onClick={() => handleExpand(node.id)}>
             {isExpanded ? "▼ " : "► "}
           </span>
-          {isEditing ? (
+          {isEditing[node.id] ? (
             <input
-              value={currentEditValue ?? node.name}
-              onChange={(e) => setCurrentEditValue(e.target.value)}
+              value={editValues[node.id] ?? node.name}
+              onChange={(e) => {
+                const updatedEditValues = {
+                  ...editValues,
+                  [node.id]: e.target.value,
+                };
+                setEditValues(updatedEditValues);
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  handleUpdateName(node.id, currentEditValue);
-                  setIsEditing(false);
+                  handleUpdateName(node.id, editValues[node.id]);
                 }
               }}
             />
           ) : (
             <span
-              onClick={() => setActiveNodeId(node.id)}
+              onClick={() => {
+                setActiveNodeId(node.id);
+                setActiveNodeName(node.name);
+              }}
               className={activeNodeId === node.id ? "active" : ""}
             >
               {node.name}
@@ -199,7 +211,9 @@ const App: FC = () => {
       <footer className="footer">
         <button onClick={() => addNode(activeNodeId)}>Add</button>
         <button onClick={() => deleteNode(activeNodeId)}>Remove</button>
-        <button onClick={() => handleStartEdit(activeNodeId, "")}>Edit</button>
+        <button onClick={() => handleStartEdit(activeNodeId, activeNodeName)}>
+          Edit
+        </button>
         <button
           onClick={() => {
             handleReset();

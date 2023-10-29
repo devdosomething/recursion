@@ -3,7 +3,7 @@
 - Склонируйте данный репозиторий:
 
 ```sh
-git clone https://github.com/devdosomething/boro.git
+git clone https://github.com/devdosomething/recursion.git
 ```
 
 - Выполните установку npm-пакетов:
